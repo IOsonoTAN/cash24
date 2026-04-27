@@ -34,4 +34,17 @@ describe("installment", () => {
     expect(finish.getFullYear()).toBe(2026);
     expect(finish.getMonth()).toBe(9);
   });
+
+  it("projects no-expiry installment for future month", () => {
+    const result = projectInstallmentForMonth({
+      amount: 1000,
+      noExpiry: true,
+      interestPercent: 10,
+      occurredAt: new Date("2026-01-01T00:00:00"),
+      targetMonth: new Date("2026-07-01T00:00:00"),
+    });
+    expect(result).not.toBeNull();
+    expect(result?.currentMonth).toBe(7);
+    expect(result?.dueAmount).toBe(1100);
+  });
 });

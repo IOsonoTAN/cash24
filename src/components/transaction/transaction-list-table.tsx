@@ -149,7 +149,7 @@ export function TransactionListTable({ transactions, emptyLabel }: TransactionLi
           </TableRow>
           <TableRow>
             <TableHead>
-              <Select value={timeFilter} onValueChange={setTimeFilter}>
+              <Select value={timeFilter} onValueChange={(value) => setTimeFilter(value ?? "all")}>
                 <SelectTrigger>
                   <SelectValue>{timeFilter === "all" ? "All times" : timeFilter}</SelectValue>
                 </SelectTrigger>
@@ -167,7 +167,7 @@ export function TransactionListTable({ transactions, emptyLabel }: TransactionLi
               <Input value={nameFilter} onChange={(event) => setNameFilter(event.target.value)} placeholder="Filter name" />
             </TableHead>
             <TableHead>
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <Select value={categoryFilter} onValueChange={(value) => setCategoryFilter(value ?? "all")}>
                 <SelectTrigger>
                   <SelectValue>
                     {categoryFilter === "all"
@@ -186,7 +186,7 @@ export function TransactionListTable({ transactions, emptyLabel }: TransactionLi
               </Select>
             </TableHead>
             <TableHead>
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value ?? "all")}>
                 <SelectTrigger>
                   <SelectValue>
                     {typeFilter === "all"

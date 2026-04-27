@@ -46,6 +46,7 @@ export default async function DashboardPage() {
               description: transaction.description,
               amount: transaction.amount,
               isInstallment: transaction.isInstallment,
+              installmentNoExpiry: transaction.installmentNoExpiry,
               installmentMonths: transaction.installmentMonths,
               installmentInterestPercent: transaction.installmentInterestPercent,
             }))}

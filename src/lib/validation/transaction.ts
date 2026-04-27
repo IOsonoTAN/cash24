@@ -67,6 +67,7 @@ export const transactionInputSchema = z
     description: z.string().trim().max(500).optional(),
     amount: z.string().trim().regex(amountRegex),
     isInstallment: z.boolean(),
+    installmentNoExpiry: z.boolean().optional(),
     installmentMonths: z.number().int().min(1).max(84).optional(),
     installmentInterestPercent: z.number().min(0).max(999).optional(),
   })
@@ -80,7 +81,7 @@ export const transactionInputSchema = z
       });
     }
     if (value.isInstallment) {
-      if (!value.installmentMonths) {
+      if (!value.installmentNoExpiry && !value.installmentMonths) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: "Installment months is required.",

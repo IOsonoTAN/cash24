@@ -41,6 +41,8 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isQueued, setIsQueued] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleteSuccessDialogOpen, setIsDeleteSuccessDialogOpen] = useState(false);
 
   const initialDate = transaction ? format(new Date(transaction.occurredAt), "yyyy-MM-dd") : defaultDate;
   const initialTime = transaction ? format(new Date(transaction.occurredAt), "HH:mm") : defaultTime;
@@ -58,6 +60,7 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
       description: transaction?.description ?? "",
       amount: transaction ? `${transaction.amount}` : "",
       isInstallment: transaction?.isInstallment ?? false,
+      installmentNoExpiry: transaction?.installmentNoExpiry ?? false,
       installmentMonths: transaction?.installmentMonths ?? undefined,
       installmentInterestPercent: transaction?.installmentInterestPercent ?? undefined,
     },
@@ -74,6 +77,10 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
   const installmentInterestPercent = useWatch({
     control: form.control,
     name: "installmentInterestPercent",
+  });
+  const installmentNoExpiry = useWatch({
+    control: form.control,
+    name: "installmentNoExpiry",
   });
   const categoryOptions = useMemo(() => kindCategoryMap[kind], [kind]);
   const uniqueCategoryOptions = useMemo(() => {
@@ -114,6 +121,11 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
       return;
     }
     const endpoint = mode === "create" ? "/api/transactions" : `/api/transactions/${transaction!.id}`;
+    const payload = {
+      ...values,
+      installmentNoExpiry: values.isInstallment ? (values.installmentNoExpiry ?? false) : false,
+      installmentMonths: values.isInstallment && !values.installmentNoExpiry ? values.installmentMonths : undefined,
+    };
     let response: Response;
     try {
       response = await fetch(endpoint, {
@@ -122,7 +134,7 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
           "Content-Type": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify(values),
+        body: JSON.stringify(payload),
       });
     } catch {
       setSubmitError("Network error. Please try again.");
@@ -158,6 +170,7 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
         description: "",
         amount: "",
         isInstallment: false,
+        installmentNoExpiry: false,
         installmentMonths: undefined,
         installmentInterestPercent: undefined,
       });
@@ -167,10 +180,6 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
 
   const handleDelete = async () => {
     if (mode !== "update" || !transaction?.id) {
-      return;
-    }
-    const confirmed = window.confirm("Delete this transaction?");
-    if (!confirmed) {
       return;
     }
     setSubmitError(null);
@@ -189,7 +198,8 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
         setSubmitError(message);
         return;
       }
-      onComplete();
+      setIsDeleteDialogOpen(false);
+      setIsDeleteSuccessDialogOpen(true);
     } catch {
       setSubmitError("Network error. Please try again.");
     } finally {
@@ -309,6 +319,7 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
           onCheckedChange={(checked) => {
             form.setValue("isInstallment", checked, { shouldValidate: true });
             if (!checked) {
+              form.setValue("installmentNoExpiry", false);
               form.setValue("installmentMonths", undefined);
               form.setValue("installmentInterestPercent", undefined);
             }
@@ -317,46 +328,64 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
       </div>
 
       {isInstallment ? (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <Label htmlFor="installmentMonths">Months <span className="text-destructive">*</span></Label>
-            <Input
-              id="installmentMonths"
-              type="number"
-              min={1}
-              max={84}
-              className="bg-background/75"
-              value={installmentMonths ?? ""}
-              onChange={(event) =>
-                form.setValue(
-                  "installmentMonths",
-                  event.target.value ? Number(event.target.value) : undefined,
-                  {
-                    shouldValidate: true,
-                  },
-                )
-              }
+        <div className="space-y-3">
+          <div className="flex items-center justify-between rounded-md border border-border/50 px-3 py-2">
+            <Label htmlFor="installmentNoExpiry">No expiry</Label>
+            <Switch
+              id="installmentNoExpiry"
+              checked={installmentNoExpiry}
+              onCheckedChange={(checked) => {
+                form.setValue("installmentNoExpiry", checked, { shouldValidate: true });
+                if (checked) {
+                  form.setValue("installmentMonths", undefined, { shouldValidate: true });
+                }
+              }}
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="installmentInterestPercent">Interest (%) <span className="text-destructive">*</span></Label>
-            <Input
-              id="installmentInterestPercent"
-              type="number"
-              min={0}
-              step="0.01"
-              className="bg-background/75"
-              value={installmentInterestPercent ?? ""}
-              onChange={(event) =>
-                form.setValue(
-                  "installmentInterestPercent",
-                  event.target.value ? Number(event.target.value) : undefined,
-                  {
-                    shouldValidate: true,
-                  },
-                )
-              }
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="installmentMonths">
+                Months {!installmentNoExpiry ? <span className="text-destructive">*</span> : null}
+              </Label>
+              <Input
+                id="installmentMonths"
+                type="number"
+                min={1}
+                max={84}
+                disabled={installmentNoExpiry}
+                className="bg-background/75"
+                value={installmentMonths ?? ""}
+                onChange={(event) =>
+                  form.setValue(
+                    "installmentMonths",
+                    event.target.value ? Number(event.target.value) : undefined,
+                    {
+                      shouldValidate: true,
+                    },
+                  )
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="installmentInterestPercent">Interest (%) <span className="text-destructive">*</span></Label>
+              <Input
+                id="installmentInterestPercent"
+                type="number"
+                min={0}
+                step="0.01"
+                className="bg-background/75"
+                value={installmentInterestPercent ?? ""}
+                onChange={(event) =>
+                  form.setValue(
+                    "installmentInterestPercent",
+                    event.target.value ? Number(event.target.value) : undefined,
+                    {
+                      shouldValidate: true,
+                    },
+                  )
+                }
+              />
+            </div>
           </div>
         </div>
       ) : null}
@@ -386,12 +415,63 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
             variant="destructive"
             className="min-w-0 flex-3"
             disabled={isDeleting || form.formState.isSubmitting}
-            onClick={() => void handleDelete()}
+            onClick={() => setIsDeleteDialogOpen(true)}
           >
             {isDeleting ? "Deleting..." : "Delete"}
           </Button>
         ) : null}
       </div>
+
+      {isDeleteDialogOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-lg border border-border bg-background p-4 shadow-lg">
+            <p className="text-base font-semibold">Confirm deletion</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Are you sure you want to delete this transaction?
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsDeleteDialogOpen(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => void handleDelete()}
+                disabled={isDeleting}
+              >
+                {isDeleting ? "Deleting..." : "Confirm"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isDeleteSuccessDialogOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-lg border border-border bg-background p-4 shadow-lg">
+            <p className="text-base font-semibold">Transaction deleted</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              The transaction has been removed and the list will be refreshed.
+            </p>
+            <div className="mt-4 flex justify-end">
+              <Button
+                type="button"
+                onClick={() => {
+                  setIsDeleteSuccessDialogOpen(false);
+                  onComplete();
+                }}
+              >
+                OK
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </form>
   );
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { revalidateTag } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import {
@@ -55,12 +55,16 @@ export async function PATCH(request: Request, { params }: Params) {
         description: data.description || null,
         amount: parseAmount(data.amount),
         isInstallment: data.isInstallment,
+        installmentNoExpiry: data.isInstallment ? (data.installmentNoExpiry ?? false) : false,
         installmentMonths: data.isInstallment ? data.installmentMonths : null,
         installmentInterestPercent: data.isInstallment ? data.installmentInterestPercent : null,
       },
     });
 
-    revalidateTag("transactions");
+    revalidateTag("transactions", "max");
+    revalidatePath("/dashboard");
+    revalidatePath("/reports/daily");
+    revalidatePath("/reports/monthly");
 
     return NextResponse.json(updated);
   } catch {
@@ -91,7 +95,10 @@ export async function DELETE(_: Request, { params }: Params) {
       where: { id },
     });
 
-    revalidateTag("transactions");
+    revalidateTag("transactions", "max");
+    revalidatePath("/dashboard");
+    revalidatePath("/reports/daily");
+    revalidatePath("/reports/monthly");
 
     return NextResponse.json({ ok: true });
   } catch {

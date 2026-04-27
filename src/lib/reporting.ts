@@ -77,7 +77,14 @@ const getMonthlyReportDataCached = unstable_cache(
 );
 
 export async function getDailyReport(userId: string, day: Date) {
-  return getDailyReportCached(userId, day.toISOString());
+  const cached = await getDailyReportCached(userId, day.toISOString());
+  return {
+    transactions: cached.transactions.map((transaction) => ({
+      ...transaction,
+      occurredAt: new Date(transaction.occurredAt),
+    })),
+    summary: cached.summary,
+  };
 }
 
 export async function getMonthlyReportData(userId: string, monthKey: string) {
@@ -113,16 +120,23 @@ export function mapInstallmentsForMonth(transactions: Transaction[], monthDate: 
   return transactions
     .filter((transaction) => transaction.isInstallment)
     .map((transaction) => {
+      const noExpiry =
+        "installmentNoExpiry" in transaction
+          ? Boolean((transaction as Transaction & { installmentNoExpiry?: boolean }).installmentNoExpiry)
+          : false;
       if (
-        !transaction.installmentMonths ||
         transaction.installmentInterestPercent === null ||
         transaction.installmentInterestPercent === undefined
       ) {
         return null;
       }
+      if (!noExpiry && !transaction.installmentMonths) {
+        return null;
+      }
       const projected = projectInstallmentForMonth({
         amount: transaction.amount,
         months: transaction.installmentMonths,
+        noExpiry,
         interestPercent: transaction.installmentInterestPercent,
         occurredAt: transaction.occurredAt,
         targetMonth: monthDate,
@@ -141,18 +155,21 @@ export function mapInstallmentsForMonth(transactions: Transaction[], monthDate: 
           description: transaction.description,
           amount: transaction.amount,
           isInstallment: transaction.isInstallment,
+          installmentNoExpiry: noExpiry,
           installmentMonths: transaction.installmentMonths ?? null,
           installmentInterestPercent: transaction.installmentInterestPercent ?? null,
         },
         name: transaction.name,
         dueAmount: projected.dueAmount,
         currentMonth: projected.currentMonth,
-        totalMonths: transaction.installmentMonths,
+        totalMonths: noExpiry ? null : transaction.installmentMonths,
+        progressLabel: noExpiry
+          ? `${projected.currentMonth}/∞`
+          : `${projected.currentMonth}/${transaction.installmentMonths}`,
         interestPercent: transaction.installmentInterestPercent,
-        finishMonth: calculateInstallmentFinishMonth(
-          transaction.occurredAt,
-          transaction.installmentMonths,
-        ),
+        finishMonth: noExpiry
+          ? null
+          : calculateInstallmentFinishMonth(transaction.occurredAt, transaction.installmentMonths as number),
       };
     })
     .filter((value): value is NonNullable<typeof value> => Boolean(value));

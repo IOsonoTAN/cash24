@@ -19,9 +19,10 @@ export type MonthlyInstallmentRow = {
   name: string;
   dueAmount: number;
   currentMonth: number;
-  totalMonths: number;
+  totalMonths: number | null;
+  progressLabel: string;
   interestPercent: number;
-  finishMonth: string;
+  finishMonth: string | null;
 };
 
 type MonthlyInstallmentTableProps = {
@@ -45,7 +46,7 @@ export function MonthlyInstallmentTable({ rows }: MonthlyInstallmentTableProps) 
       } else if (sortKey === "interest") {
         result = a.interestPercent - b.interestPercent;
       } else if (sortKey === "finishMonth") {
-        result = a.finishMonth.localeCompare(b.finishMonth);
+        result = (a.finishMonth ?? "No expiry").localeCompare(b.finishMonth ?? "No expiry");
       } else {
         result = a.dueAmount - b.dueAmount;
       }
@@ -116,9 +117,9 @@ export function MonthlyInstallmentTable({ rows }: MonthlyInstallmentTableProps) 
                 onClick={() => setSelected(row)}
               >
                 <TableCell>{row.name}</TableCell>
-                <TableCell>{`${row.currentMonth}/${row.totalMonths}`}</TableCell>
+                <TableCell>{row.progressLabel}</TableCell>
                 <TableCell>{`${row.interestPercent}%`}</TableCell>
-                <TableCell>{row.finishMonth}</TableCell>
+                <TableCell>{row.finishMonth ?? "No expiry"}</TableCell>
                 <TableCell className="text-right">{formatCurrency(row.dueAmount)}</TableCell>
               </TableRow>
             ))

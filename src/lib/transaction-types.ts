@@ -9,6 +9,7 @@ export type TransactionRow = {
   description: string | null;
   amount: number;
   isInstallment: boolean;
+  installmentNoExpiry: boolean;
   installmentMonths: number | null;
   installmentInterestPercent: number | null;
 };

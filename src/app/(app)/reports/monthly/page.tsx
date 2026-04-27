@@ -209,7 +209,7 @@ export default async function MonthlyReportPage({
               <MonthlyInstallmentTable
                 rows={rows.map((row) => ({
                   ...row,
-                  finishMonth: formatDateTime(row.finishMonth),
+                  finishMonth: row.finishMonth ? formatDateTime(row.finishMonth) : null,
                 }))}
               />
             </div>

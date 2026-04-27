@@ -10,6 +10,7 @@ const validInput = {
   description: "Noodles",
   amount: "1,200.50",
   isInstallment: false,
+  installmentNoExpiry: false,
 };
 
 describe("transaction validation", () => {
@@ -35,6 +36,17 @@ describe("transaction validation", () => {
       isInstallment: true,
     });
     expect(parsed.success).toBe(false);
+  });
+
+  it("accepts no-expiry installment without months", () => {
+    const parsed = transactionInputSchema.safeParse({
+      ...validInput,
+      isInstallment: true,
+      installmentNoExpiry: true,
+      installmentInterestPercent: 0,
+      installmentMonths: undefined,
+    });
+    expect(parsed.success).toBe(true);
   });
 
   it("parses amount string with comma format", () => {

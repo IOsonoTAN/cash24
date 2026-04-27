@@ -99,6 +99,7 @@ model Transaction {
   description                String?
   amount                     Float
   isInstallment              Boolean             @default(false)
+  installmentNoExpiry        Boolean             @default(false)
   installmentMonths          Int?
   installmentInterestPercent Float?
   createdAt                  DateTime            @default(now())
