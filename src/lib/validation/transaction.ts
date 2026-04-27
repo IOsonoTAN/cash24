@@ -1,7 +1,14 @@
 import { z } from "zod";
 
 export const transactionKinds = ["EXPENSE", "INCOME"] as const;
-export const paymentMethods = ["CASH", "CREDIT_CARD", "VOUCHER"] as const;
+export const paymentMethods = ["CASH", "CARD", "VOUCHER"] as const;
+export const recurrenceFrequencies = [
+  "NONE",
+  "DAILY",
+  "WEEKLY",
+  "MONTHLY",
+  "YEARLY",
+] as const;
 export const expenseCategories = [
   "EXPENSE_FOOD",
   "EXPENSE_BEVERAGE",
@@ -26,13 +33,19 @@ export const incomeCategories = [
   "INCOME_GIFT",
   "INCOME_OTHER",
 ] as const;
-export const transactionCategories = [...expenseCategories, ...incomeCategories] as const;
+export const transactionCategories = [
+  ...expenseCategories,
+  ...incomeCategories,
+] as const;
 export const kindCategoryMap = {
   EXPENSE: expenseCategories,
   INCOME: incomeCategories,
 } as const;
 
-export const categoryLabelMap: Record<(typeof transactionCategories)[number], string> = {
+export const categoryLabelMap: Record<
+  (typeof transactionCategories)[number],
+  string
+> = {
   EXPENSE_FOOD: "Food",
   EXPENSE_BEVERAGE: "Beverage",
   EXPENSE_SHIPPING: "Shipping",
@@ -55,10 +68,23 @@ export const categoryLabelMap: Record<(typeof transactionCategories)[number], st
   INCOME_OTHER: "Other",
 };
 
-export const paymentMethodLabelMap: Record<(typeof paymentMethods)[number], string> = {
+export const paymentMethodLabelMap: Record<
+  (typeof paymentMethods)[number],
+  string
+> = {
   CASH: "Cash",
-  CREDIT_CARD: "Credit card",
+  CARD: "Credit card",
   VOUCHER: "Voucher",
+};
+export const recurrenceLabelMap: Record<
+  (typeof recurrenceFrequencies)[number],
+  string
+> = {
+  NONE: "No repeat",
+  DAILY: "Daily",
+  WEEKLY: "Weekly",
+  MONTHLY: "Monthly",
+  YEARLY: "Yearly",
 };
 
 const amountRegex = /^\d{1,3}(,\d{3})*(\.\d{0,2})?$|^\d+(\.\d{0,2})?$/;
@@ -74,6 +100,7 @@ export const transactionInputSchema = z
     description: z.string().trim().max(500).optional(),
     amount: z.string().trim().regex(amountRegex),
     paymentMethod: z.enum(paymentMethods),
+    recurrence: z.enum(recurrenceFrequencies),
     isInstallment: z.boolean(),
     installmentNoExpiry: z.boolean().optional(),
     installmentMonths: z.number().int().min(1).max(84).optional(),

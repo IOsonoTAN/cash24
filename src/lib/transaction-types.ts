@@ -1,4 +1,4 @@
-import { PaymentMethod, TransactionCategory, TransactionKind } from "@prisma/client";
+import { PaymentMethod, RecurrenceFrequency, TransactionCategory, TransactionKind } from "@prisma/client";
 
 export type TransactionRow = {
   id: string;
@@ -9,6 +9,7 @@ export type TransactionRow = {
   description: string | null;
   amount: number;
   paymentMethod: PaymentMethod;
+  recurrence: RecurrenceFrequency;
   isInstallment: boolean;
   installmentNoExpiry: boolean;
   installmentMonths: number | null;

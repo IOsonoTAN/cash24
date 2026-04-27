@@ -1,4 +1,4 @@
-import { endOfDay, format, startOfDay } from "date-fns";
+import { differenceInCalendarDays, eachDayOfInterval, endOfDay, format, getDaysInMonth, startOfDay } from "date-fns";
 import { unstable_cache } from "next/cache";
 import { Transaction } from "@prisma/client";
 import { calculateInstallmentFinishMonth, projectInstallmentForMonth } from "@/lib/installment";
@@ -7,28 +7,50 @@ import { prisma } from "@/lib/prisma";
 const getDailyReportCached = unstable_cache(
   async (userId: string, dayIso: string) => {
     const day = new Date(dayIso);
-    const transactions = await prisma.transaction.findMany({
-      where: {
-        userId,
-        occurredAt: {
-          gte: startOfDay(day),
-          lte: endOfDay(day),
+    const [transactions, recurringTemplates] = await Promise.all([
+      prisma.transaction.findMany({
+        where: {
+          userId,
+          occurredAt: {
+            gte: startOfDay(day),
+            lte: endOfDay(day),
+          },
         },
-      },
-      orderBy: {
-        occurredAt: "desc",
-      },
-    });
+        orderBy: {
+          occurredAt: "desc",
+        },
+      }),
+      prisma.transaction.findMany({
+        where: {
+          userId,
+          recurrence: {
+            not: "NONE",
+          },
+          occurredAt: {
+            lte: endOfDay(day),
+          },
+        },
+      }),
+    ]);
+    const projectedTransactions = recurringTemplates
+      .filter((transaction) => shouldProjectRecurringOnDay(transaction, day))
+      .map((transaction) => ({
+        ...transaction,
+        occurredAt: mergeDayWithTime(day, transaction.occurredAt),
+      }));
+    const allTransactions = [...transactions, ...projectedTransactions].sort(
+      (a, b) => b.occurredAt.getTime() - a.occurredAt.getTime(),
+    );
 
-    const income = transactions
+    const income = allTransactions
       .filter((t) => t.kind === "INCOME")
       .reduce((sum, t) => sum + t.amount, 0);
-    const expense = transactions
+    const expense = allTransactions
       .filter((t) => t.kind === "EXPENSE")
       .reduce((sum, t) => sum + t.amount, 0);
 
     return {
-      transactions,
+      transactions: allTransactions,
       summary: {
         income,
         expense,
@@ -46,7 +68,7 @@ const getMonthlyReportDataCached = unstable_cache(
     const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
     const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0, 23, 59, 59, 999);
 
-    const [monthTransactions, installmentTransactions] = await Promise.all([
+    const [monthTransactions, installmentTransactions, recurringTemplates] = await Promise.all([
       prisma.transaction.findMany({
         where: {
           userId,
@@ -65,16 +87,90 @@ const getMonthlyReportDataCached = unstable_cache(
           occurredAt: "asc",
         },
       }),
+      prisma.transaction.findMany({
+        where: {
+          userId,
+          recurrence: {
+            not: "NONE",
+          },
+          occurredAt: {
+            lte: monthEnd,
+          },
+        },
+      }),
     ]);
+    const monthDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
+    const projectedRecurring = recurringTemplates.flatMap((template) =>
+      monthDays
+        .filter((day) => shouldProjectRecurringOnDay(template, day))
+        .map((day) => ({
+          ...template,
+          occurredAt: mergeDayWithTime(day, template.occurredAt),
+        })),
+    );
 
     return {
-      monthTransactions,
+      monthTransactions: [...monthTransactions, ...projectedRecurring],
       installmentTransactions,
     };
   },
   ["monthly-report-data"],
   { tags: ["transactions"], revalidate: 30 },
 );
+
+function mergeDayWithTime(day: Date, timeSource: Date) {
+  return new Date(
+    day.getFullYear(),
+    day.getMonth(),
+    day.getDate(),
+    timeSource.getHours(),
+    timeSource.getMinutes(),
+    timeSource.getSeconds(),
+    timeSource.getMilliseconds(),
+  );
+}
+
+function shouldProjectRecurringOnDay(
+  transaction: Transaction,
+  day: Date,
+) {
+  const startDay = new Date(
+    transaction.occurredAt.getFullYear(),
+    transaction.occurredAt.getMonth(),
+    transaction.occurredAt.getDate(),
+  );
+  const targetDay = new Date(day.getFullYear(), day.getMonth(), day.getDate());
+  if (targetDay <= startDay) {
+    return false;
+  }
+  if (transaction.recurrence === "DAILY") {
+    return true;
+  }
+  if (transaction.recurrence === "WEEKLY") {
+    return differenceInCalendarDays(targetDay, startDay) % 7 === 0;
+  }
+  if (transaction.recurrence === "MONTHLY") {
+    const monthsDiff =
+      (targetDay.getFullYear() - startDay.getFullYear()) * 12 +
+      (targetDay.getMonth() - startDay.getMonth());
+    if (monthsDiff < 0) {
+      return false;
+    }
+    const anchorDay = Math.min(startDay.getDate(), getDaysInMonth(targetDay));
+    return targetDay.getDate() === anchorDay;
+  }
+  if (transaction.recurrence === "YEARLY") {
+    if (targetDay.getFullYear() < startDay.getFullYear()) {
+      return false;
+    }
+    if (targetDay.getMonth() !== startDay.getMonth()) {
+      return false;
+    }
+    const anchorDay = Math.min(startDay.getDate(), getDaysInMonth(targetDay));
+    return targetDay.getDate() === anchorDay;
+  }
+  return false;
+}
 
 export async function getDailyReport(userId: string, day: Date) {
   const cached = await getDailyReportCached(userId, day.toISOString());
@@ -155,6 +251,7 @@ export function mapInstallmentsForMonth(transactions: Transaction[], monthDate: 
           description: transaction.description,
           amount: transaction.amount,
           paymentMethod: transaction.paymentMethod,
+          recurrence: transaction.recurrence,
           isInstallment: transaction.isInstallment,
           installmentNoExpiry: noExpiry,
           installmentMonths: transaction.installmentMonths ?? null,

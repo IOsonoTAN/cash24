@@ -15,6 +15,7 @@ describe("reporting", () => {
           description: null,
           amount: 10000,
           paymentMethod: "CASH",
+          recurrence: "NONE",
           isInstallment: true,
           installmentNoExpiry: false,
           installmentMonths: 10,
@@ -27,11 +28,12 @@ describe("reporting", () => {
     );
 
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.currentMonth).toBe(2);
-    expect(rows[0]?.dueAmount).toBe(1000);
-    expect(rows[0]?.progressLabel).toBe("2/10");
-    expect(rows[0]?.finishMonth.getFullYear()).toBe(2026);
-    expect(rows[0]?.finishMonth.getMonth()).toBe(9);
+    const row = rows[0]!;
+    expect(row.currentMonth).toBe(2);
+    expect(row.dueAmount).toBe(1000);
+    expect(row.progressLabel).toBe("2/10");
+    expect(row.finishMonth?.getFullYear()).toBe(2026);
+    expect(row.finishMonth?.getMonth()).toBe(9);
   });
 
   it("maps no-expiry installment rows for selected month", () => {
@@ -47,6 +49,7 @@ describe("reporting", () => {
           description: null,
           amount: 5000,
           paymentMethod: "CASH",
+          recurrence: "NONE",
           isInstallment: true,
           installmentNoExpiry: true,
           installmentMonths: null,
@@ -59,8 +62,9 @@ describe("reporting", () => {
     );
 
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.currentMonth).toBe(3);
-    expect(rows[0]?.progressLabel).toBe("3/∞");
-    expect(rows[0]?.finishMonth).toBeNull();
+    const row = rows[0]!;
+    expect(row.currentMonth).toBe(3);
+    expect(row.progressLabel).toBe("3/∞");
+    expect(row.finishMonth).toBeNull();
   });
 });

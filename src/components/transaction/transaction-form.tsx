@@ -1,15 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, useWatch } from "react-hook-form";
-import { format } from "date-fns";
-import { Banknote, CreditCard, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -17,19 +10,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { sanitizeAmountInput } from "@/lib/format";
 import { enqueueTransaction } from "@/lib/offline/queue";
+import { TransactionRow } from "@/lib/transaction-types";
 import { cn } from "@/lib/utils";
 import {
   categoryLabelMap,
   kindCategoryMap,
-  paymentMethodLabelMap,
-  paymentMethods,
+  recurrenceFrequencies,
+  recurrenceLabelMap,
   TransactionInput,
   transactionInputSchema,
   transactionKinds,
 } from "@/lib/validation/transaction";
-import { TransactionRow } from "@/lib/transaction-types";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { format } from "date-fns";
+import {
+  Banknote,
+  CreditCard,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
 
 type TransactionFormProps = {
   mode: "create" | "update";
@@ -41,17 +44,32 @@ const now = new Date();
 const defaultDate = format(now, "yyyy-MM-dd");
 const defaultTime = format(now, "HH:mm");
 
-export function TransactionForm({ mode, transaction, onComplete }: TransactionFormProps) {
+export function TransactionForm({
+  mode,
+  transaction,
+  onComplete,
+}: TransactionFormProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isQueued, setIsQueued] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isDeleteSuccessDialogOpen, setIsDeleteSuccessDialogOpen] = useState(false);
+  const [isDeleteSuccessDialogOpen, setIsDeleteSuccessDialogOpen] =
+    useState(false);
 
-  const initialDate = transaction ? format(new Date(transaction.occurredAt), "yyyy-MM-dd") : defaultDate;
-  const initialTime = transaction ? format(new Date(transaction.occurredAt), "HH:mm") : defaultTime;
+  const initialDate = transaction
+    ? format(new Date(transaction.occurredAt), "yyyy-MM-dd")
+    : defaultDate;
+  const initialTime = transaction
+    ? format(new Date(transaction.occurredAt), "HH:mm")
+    : defaultTime;
   const initialKind = transaction?.kind ?? "EXPENSE";
   const initialCategory = transaction?.category ?? "EXPENSE_FOOD";
+  const initialPaymentMethod: TransactionInput["paymentMethod"] =
+    transaction?.paymentMethod === "CASH"
+      ? "CASH"
+      : transaction?.paymentMethod === "CREDIT_CARD"
+        ? "CARD"
+        : "CASH";
 
   const form = useForm<TransactionInput>({
     resolver: zodResolver(transactionInputSchema),
@@ -63,11 +81,13 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
       name: transaction?.name ?? "",
       description: transaction?.description ?? "",
       amount: transaction ? `${transaction.amount}` : "",
-      paymentMethod: transaction?.paymentMethod ?? "CASH",
+      paymentMethod: initialPaymentMethod,
+      recurrence: transaction?.recurrence ?? "NONE",
       isInstallment: transaction?.isInstallment ?? false,
       installmentNoExpiry: transaction?.installmentNoExpiry ?? false,
       installmentMonths: transaction?.installmentMonths ?? undefined,
-      installmentInterestPercent: transaction?.installmentInterestPercent ?? undefined,
+      installmentInterestPercent:
+        transaction?.installmentInterestPercent ?? undefined,
     },
   });
 
@@ -78,8 +98,15 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
   const kind = useWatch({ control: form.control, name: "kind" });
   const category = useWatch({ control: form.control, name: "category" });
   const amount = useWatch({ control: form.control, name: "amount" });
-  const paymentMethod = useWatch({ control: form.control, name: "paymentMethod" });
-  const installmentMonths = useWatch({ control: form.control, name: "installmentMonths" });
+  const paymentMethod = useWatch({
+    control: form.control,
+    name: "paymentMethod",
+  });
+  const recurrence = useWatch({ control: form.control, name: "recurrence" });
+  const installmentMonths = useWatch({
+    control: form.control,
+    name: "installmentMonths",
+  });
   const installmentInterestPercent = useWatch({
     control: form.control,
     name: "installmentInterestPercent",
@@ -126,11 +153,19 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
       setSubmitError("Cannot update transaction: missing id.");
       return;
     }
-    const endpoint = mode === "create" ? "/api/transactions" : `/api/transactions/${transaction!.id}`;
+    const endpoint =
+      mode === "create"
+        ? "/api/transactions"
+        : `/api/transactions/${transaction!.id}`;
     const payload = {
       ...values,
-      installmentNoExpiry: values.isInstallment ? (values.installmentNoExpiry ?? false) : false,
-      installmentMonths: values.isInstallment && !values.installmentNoExpiry ? values.installmentMonths : undefined,
+      installmentNoExpiry: values.isInstallment
+        ? (values.installmentNoExpiry ?? false)
+        : false,
+      installmentMonths:
+        values.isInstallment && !values.installmentNoExpiry
+          ? values.installmentMonths
+          : undefined,
     };
     let response: Response;
     try {
@@ -176,6 +211,7 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
         description: "",
         amount: "",
         paymentMethod: values.paymentMethod,
+        recurrence: values.recurrence,
         isInstallment: false,
         installmentNoExpiry: false,
         installmentMonths: undefined,
@@ -215,11 +251,19 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
   };
 
   return (
-    <form className="space-y-4 rounded-xl border border-border/70 bg-background/55 p-4" onSubmit={onSubmit}>
-      <p className="text-xs text-muted-foreground">Fields marked with <span className="text-destructive">*</span> are required.</p>
+    <form
+      className="space-y-4 rounded-xl border border-border/70 bg-background/55 p-4"
+      onSubmit={onSubmit}
+    >
+      <p className="text-xs text-muted-foreground">
+        Fields marked with <span className="text-destructive">*</span> are
+        required.
+      </p>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
-          <Label>Type <span className="text-destructive">*</span></Label>
+          <Label>
+            Type <span className="text-destructive">*</span>
+          </Label>
           <Select
             value={kind}
             onValueChange={(value) => {
@@ -229,7 +273,9 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
             }}
           >
             <SelectTrigger className="w-full bg-background/75">
-              <SelectValue>{kind === "INCOME" ? "Income" : "Expense"}</SelectValue>
+              <SelectValue>
+                {kind === "INCOME" ? "Income" : "Expense"}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {transactionKinds.map((kind) => (
@@ -241,7 +287,9 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
           </Select>
         </div>
         <div className="space-y-2">
-          <Label>Category <span className="text-destructive">*</span></Label>
+          <Label>
+            Category <span className="text-destructive">*</span>
+          </Label>
           <Select
             value={category}
             onValueChange={(value) =>
@@ -264,7 +312,9 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
-          <Label htmlFor="date">Date <span className="text-destructive">*</span></Label>
+          <Label htmlFor="date">
+            Date <span className="text-destructive">*</span>
+          </Label>
           <Input
             id="date"
             type="date"
@@ -275,7 +325,9 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="time">Time (HH:mm) <span className="text-destructive">*</span></Label>
+          <Label htmlFor="time">
+            Time (HH:mm) <span className="text-destructive">*</span>
+          </Label>
           <Input
             id="time"
             type="time"
@@ -287,7 +339,9 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="name">Name <span className="text-destructive">*</span></Label>
+        <Label htmlFor="name">
+          Name <span className="text-destructive">*</span>
+        </Label>
         <Input
           id="name"
           className="bg-background/75"
@@ -298,11 +352,17 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
 
       <div className="space-y-2">
         <Label htmlFor="description">Description</Label>
-        <Textarea id="description" className="bg-background/75" {...form.register("description")} />
+        <Textarea
+          id="description"
+          className="bg-background/75"
+          {...form.register("description")}
+        />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="amount">Amount <span className="text-destructive">*</span></Label>
+        <Label htmlFor="amount">
+          Amount <span className="text-destructive">*</span>
+        </Label>
         <Input
           id="amount"
           className="bg-background/75"
@@ -318,9 +378,11 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
         />
       </div>
       <div className="space-y-2">
-        <Label>Payment method <span className="text-destructive">*</span></Label>
-        <div className="grid grid-cols-3 gap-2">
-          {paymentMethods.map((method) => (
+        <Label>
+          Payment method <span className="text-destructive">*</span>
+        </Label>
+        <div className="grid grid-cols-2 gap-2">
+          {(["CASH", "CARD"] as const).map((method) => (
             <button
               key={method}
               type="button"
@@ -331,22 +393,57 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
                   : "text-muted-foreground",
               )}
               onClick={() =>
-                form.setValue("paymentMethod", method as TransactionInput["paymentMethod"], {
-                  shouldValidate: true,
-                })
+                form.setValue(
+                  "paymentMethod",
+                  method as TransactionInput["paymentMethod"],
+                  {
+                    shouldValidate: true,
+                  },
+                )
               }
             >
               {method === "CASH" ? <Banknote className="h-3.5 w-3.5" /> : null}
-              {method === "CREDIT_CARD" ? <CreditCard className="h-3.5 w-3.5" /> : null}
-              {method === "VOUCHER" ? <Ticket className="h-3.5 w-3.5" /> : null}
-              <span>{paymentMethodLabelMap[method]}</span>
+              {method === "CARD" ? (
+                <CreditCard className="h-3.5 w-3.5" />
+              ) : null}
+              <span>{method === "CASH" ? "Cash" : "Card"}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-3 rounded-xl border border-border/70 bg-background/45 p-3">
+        <Label>Repeat</Label>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+          {recurrenceFrequencies.map((frequency) => (
+            <button
+              key={frequency}
+              type="button"
+              className={cn(
+                "inline-flex min-h-11 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2 py-2 text-xs font-medium transition-colors hover:bg-secondary/70",
+                recurrence === frequency
+                  ? "border-primary bg-primary/15 text-primary shadow-sm"
+                  : "text-foreground/85",
+              )}
+              onClick={() =>
+                form.setValue(
+                  "recurrence",
+                  frequency as TransactionInput["recurrence"],
+                  {
+                    shouldValidate: true,
+                  },
+                )
+              }
+            >
+              <span>{frequency === "NONE" ? "No" : recurrenceLabelMap[frequency]}</span>
             </button>
           ))}
         </div>
       </div>
 
-      <div className="flex items-center justify-between rounded-md border border-border/50 px-3 py-2">
-        <Label htmlFor="isInstallment">Installment</Label>
+      <div className="flex items-center justify-between rounded-xl border border-border/70 bg-background/45 px-3 py-2.5">
+        <Label htmlFor="isInstallment" className="text-sm font-medium">
+          Installment
+        </Label>
         <Switch
           id="isInstallment"
           checked={isInstallment}
@@ -362,16 +459,25 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
       </div>
 
       {isInstallment ? (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between rounded-md border border-border/50 px-3 py-2">
-            <Label htmlFor="installmentNoExpiry">No expiry</Label>
+        <div className="space-y-3 rounded-xl border border-border/70 bg-background/45 p-3">
+          <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background px-3 py-2.5">
+            <Label
+              htmlFor="installmentNoExpiry"
+              className="text-sm font-medium"
+            >
+              No expiry
+            </Label>
             <Switch
               id="installmentNoExpiry"
               checked={installmentNoExpiry}
               onCheckedChange={(checked) => {
-                form.setValue("installmentNoExpiry", checked, { shouldValidate: true });
+                form.setValue("installmentNoExpiry", checked, {
+                  shouldValidate: true,
+                });
                 if (checked) {
-                  form.setValue("installmentMonths", undefined, { shouldValidate: true });
+                  form.setValue("installmentMonths", undefined, {
+                    shouldValidate: true,
+                  });
                 }
               }}
             />
@@ -379,7 +485,10 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="installmentMonths">
-                Months {!installmentNoExpiry ? <span className="text-destructive">*</span> : null}
+                Months{" "}
+                {!installmentNoExpiry ? (
+                  <span className="text-destructive">*</span>
+                ) : null}
               </Label>
               <Input
                 id="installmentMonths"
@@ -387,7 +496,7 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
                 min={1}
                 max={84}
                 disabled={installmentNoExpiry}
-                className="bg-background/75"
+                className="bg-background"
                 value={installmentMonths ?? ""}
                 onChange={(event) =>
                   form.setValue(
@@ -401,13 +510,15 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="installmentInterestPercent">Interest (%) <span className="text-destructive">*</span></Label>
+              <Label htmlFor="installmentInterestPercent">
+                Interest (%) <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="installmentInterestPercent"
                 type="number"
                 min={0}
                 step="0.01"
-                className="bg-background/75"
+                className="bg-background"
                 value={installmentInterestPercent ?? ""}
                 onChange={(event) =>
                   form.setValue(
@@ -422,18 +533,26 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
             </div>
           </div>
           {installmentNoExpiry ? (
-            <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+            <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
               Fixed cost
             </p>
           ) : null}
         </div>
       ) : null}
 
-      {submitError ? <p className="text-sm text-destructive">{submitError}</p> : null}
-      {isQueued ? <p className="text-sm text-emerald-600">Saved offline and pending sync.</p> : null}
+      {submitError ? (
+        <p className="text-sm text-destructive">{submitError}</p>
+      ) : null}
+      {isQueued ? (
+        <p className="text-sm text-emerald-600">
+          Saved offline and pending sync.
+        </p>
+      ) : null}
 
       {Object.values(form.formState.errors).length > 0 ? (
-        <p className="text-sm text-destructive">Please check required fields and values.</p>
+        <p className="text-sm text-destructive">
+          Please check required fields and values.
+        </p>
       ) : null}
 
       <div className="flex w-full gap-2">

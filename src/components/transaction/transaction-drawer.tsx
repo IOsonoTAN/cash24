@@ -66,11 +66,11 @@ export function TransactionDrawer({
           {resolvedLabel}
         </SheetTrigger>
       ) : null}
-      <SheetContent className="w-full border-white/50 bg-white/90 p-6 text-foreground shadow-2xl backdrop-blur-2xl dark:border-white/20 dark:bg-slate-950/90 sm:max-w-md">
-        <SheetHeader>
+      <SheetContent className="w-full overflow-y-auto border-white/50 bg-white/90 p-4 text-foreground shadow-2xl backdrop-blur-2xl dark:border-white/20 dark:bg-slate-950/90 sm:max-w-md sm:p-6">
+        <SheetHeader className="px-0 pt-0">
           <SheetTitle className="text-2xl font-semibold">{title}</SheetTitle>
         </SheetHeader>
-        <div className="mt-4">
+        <div className="mt-4 pb-4">
           <TransactionForm
             mode={mode}
             transaction={transaction}

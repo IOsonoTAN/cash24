@@ -1,9 +1,15 @@
 "use client";
 
-import { format } from "date-fns";
-import { useMemo, useState } from "react";
-import { Banknote, CreditCard, Ticket } from "lucide-react";
+import { TransactionDrawer } from "@/components/transaction/transaction-drawer";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -12,21 +18,34 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { TransactionDrawer } from "@/components/transaction/transaction-drawer";
 import { formatCurrency, formatDateTime } from "@/lib/format";
-import { categoryLabelMap, paymentMethodLabelMap } from "@/lib/validation/transaction";
 import { TransactionRow } from "@/lib/transaction-types";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  categoryLabelMap,
+  paymentMethodLabelMap,
+  recurrenceLabelMap,
+} from "@/lib/validation/transaction";
+import { format } from "date-fns";
+import { Banknote, CreditCard, Ticket } from "lucide-react";
+import { useMemo, useState } from "react";
 
 type TransactionListTableProps = {
   transactions: TransactionRow[];
   emptyLabel: string;
 };
 
-type SortKey = "occurredAt" | "name" | "category" | "kind" | "paymentMethod" | "amount";
+type SortKey =
+  | "occurredAt"
+  | "name"
+  | "category"
+  | "kind"
+  | "paymentMethod"
+  | "amount";
 
-export function TransactionListTable({ transactions, emptyLabel }: TransactionListTableProps) {
+export function TransactionListTable({
+  transactions,
+  emptyLabel,
+}: TransactionListTableProps) {
   const [selected, setSelected] = useState<TransactionRow | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("occurredAt");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
@@ -38,14 +57,20 @@ export function TransactionListTable({ transactions, emptyLabel }: TransactionLi
 
   const timeOptions = useMemo(() => {
     return Array.from(
-      new Set(transactions.map((transaction) => format(new Date(transaction.occurredAt), "HH:mm"))),
+      new Set(
+        transactions.map((transaction) =>
+          format(new Date(transaction.occurredAt), "HH:mm"),
+        ),
+      ),
     ).sort((a, b) => a.localeCompare(b));
   }, [transactions]);
 
   const categoryOptions = useMemo(() => {
     return Array.from(
       new Set(
-        transactions.map((transaction) => `${transaction.category}|${transaction.kind}`),
+        transactions.map(
+          (transaction) => `${transaction.category}|${transaction.kind}`,
+        ),
       ),
     )
       .map((option) => {
@@ -78,11 +103,14 @@ export function TransactionListTable({ transactions, emptyLabel }: TransactionLi
     return filtered.sort((a, b) => {
       let result = 0;
       if (sortKey === "occurredAt") {
-        result = new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime();
+        result =
+          new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime();
       } else if (sortKey === "name") {
         result = a.name.localeCompare(b.name);
       } else if (sortKey === "category") {
-        result = categoryLabelMap[a.category].localeCompare(categoryLabelMap[b.category]);
+        result = categoryLabelMap[a.category].localeCompare(
+          categoryLabelMap[b.category],
+        );
       } else if (sortKey === "kind") {
         result = a.kind.localeCompare(b.kind);
       } else if (sortKey === "paymentMethod") {
@@ -123,7 +151,7 @@ export function TransactionListTable({ transactions, emptyLabel }: TransactionLi
     <>
       <Table>
         <TableHeader>
-          <TableRow>
+          <TableRow className="bg-muted/30">
             <TableHead>
               <button type="button" onClick={() => handleSort("occurredAt")}>
                 Date & Time{sortLabel("occurredAt")}
@@ -157,9 +185,14 @@ export function TransactionListTable({ transactions, emptyLabel }: TransactionLi
           </TableRow>
           <TableRow>
             <TableHead>
-              <Select value={timeFilter} onValueChange={(value) => setTimeFilter(value ?? "all")}>
-                <SelectTrigger>
-                  <SelectValue>{timeFilter === "all" ? "All times" : timeFilter}</SelectValue>
+              <Select
+                value={timeFilter}
+                onValueChange={(value) => setTimeFilter(value ?? "all")}
+              >
+                <SelectTrigger className="h-9 border-border bg-white text-foreground shadow-sm dark:border-border dark:bg-slate-900/70">
+                  <SelectValue>
+                    {timeFilter === "all" ? "All times" : timeFilter}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All times</SelectItem>
@@ -172,15 +205,25 @@ export function TransactionListTable({ transactions, emptyLabel }: TransactionLi
               </Select>
             </TableHead>
             <TableHead>
-              <Input value={nameFilter} onChange={(event) => setNameFilter(event.target.value)} placeholder="Filter name" />
+              <Input
+                className="h-9 border-border bg-white text-foreground placeholder:text-muted-foreground/80 shadow-sm dark:border-border dark:bg-slate-900/70"
+                value={nameFilter}
+                onChange={(event) => setNameFilter(event.target.value)}
+                placeholder="Filter name"
+              />
             </TableHead>
             <TableHead>
-              <Select value={categoryFilter} onValueChange={(value) => setCategoryFilter(value ?? "all")}>
-                <SelectTrigger>
+              <Select
+                value={categoryFilter}
+                onValueChange={(value) => setCategoryFilter(value ?? "all")}
+              >
+                <SelectTrigger className="h-9 border-border bg-white text-foreground shadow-sm dark:border-border dark:bg-slate-900/70">
                   <SelectValue>
                     {categoryFilter === "all"
                       ? "All categories"
-                      : (categoryOptions.find((option) => option.value === categoryFilter)?.label ?? "All categories")}
+                      : (categoryOptions.find(
+                          (option) => option.value === categoryFilter,
+                        )?.label ?? "All categories")}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -194,8 +237,11 @@ export function TransactionListTable({ transactions, emptyLabel }: TransactionLi
               </Select>
             </TableHead>
             <TableHead>
-              <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value ?? "all")}>
-                <SelectTrigger>
+              <Select
+                value={typeFilter}
+                onValueChange={(value) => setTypeFilter(value ?? "all")}
+              >
+                <SelectTrigger className="h-9 border-border bg-white text-foreground shadow-sm dark:border-border dark:bg-slate-900/70">
                   <SelectValue>
                     {typeFilter === "all"
                       ? "All types"
@@ -213,14 +259,22 @@ export function TransactionListTable({ transactions, emptyLabel }: TransactionLi
             </TableHead>
             <TableHead />
             <TableHead>
-              <Input value={amountFilter} onChange={(event) => setAmountFilter(event.target.value)} placeholder="Filter amount" />
+              <Input
+                className="h-9 border-border bg-white text-foreground placeholder:text-muted-foreground/80 shadow-sm dark:border-border dark:bg-slate-900/70"
+                value={amountFilter}
+                onChange={(event) => setAmountFilter(event.target.value)}
+                placeholder="Filter amount"
+              />
             </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {displayedTransactions.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="text-center text-muted-foreground">
+              <TableCell
+                colSpan={6}
+                className="text-center text-muted-foreground"
+              >
                 {emptyLabel}
               </TableCell>
             </TableRow>
@@ -236,25 +290,46 @@ export function TransactionListTable({ transactions, emptyLabel }: TransactionLi
                 <TableCell>{categoryLabelMap[transaction.category]}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <Badge variant={transaction.kind === "INCOME" ? "default" : "secondary"}>
+                    <Badge
+                      variant={
+                        transaction.kind === "INCOME" ? "default" : "secondary"
+                      }
+                    >
                       {transaction.kind}
                     </Badge>
                     {transaction.isInstallment ? (
                       <Badge variant="outline">
-                        {transaction.installmentNoExpiry ? "Fixed cost" : "Installment"}
+                        {transaction.installmentNoExpiry
+                          ? "Fixed cost"
+                          : "Installment"}
+                      </Badge>
+                    ) : null}
+                    {transaction.recurrence !== "NONE" ? (
+                      <Badge variant="outline">
+                        {recurrenceLabelMap[transaction.recurrence]}
                       </Badge>
                     ) : null}
                   </div>
                 </TableCell>
                 <TableCell>
                   <div className="inline-flex items-center gap-1 text-xs">
-                    {transaction.paymentMethod === "CASH" ? <Banknote className="h-3.5 w-3.5" /> : null}
-                    {transaction.paymentMethod === "CREDIT_CARD" ? <CreditCard className="h-3.5 w-3.5" /> : null}
-                    {transaction.paymentMethod === "VOUCHER" ? <Ticket className="h-3.5 w-3.5" /> : null}
-                    <span>{paymentMethodLabelMap[transaction.paymentMethod]}</span>
+                    {transaction.paymentMethod === "CASH" ? (
+                      <Banknote className="h-3.5 w-3.5" />
+                    ) : null}
+                    {transaction.paymentMethod === "CREDIT_CARD" ? (
+                      <CreditCard className="h-3.5 w-3.5" />
+                    ) : null}
+                    {transaction.paymentMethod === "VOUCHER" ? (
+                      <Ticket className="h-3.5 w-3.5" />
+                    ) : null}
+                    <span>
+                      {paymentMethodLabelMap[transaction.paymentMethod]}
+                    </span>
                   </div>
                 </TableCell>
-                <TableCell className="text-right">{formatCurrency(transaction.amount)}</TableCell>
+                <TableCell className="text-right">
+                  {formatCurrency(transaction.amount)}
+                </TableCell>
               </TableRow>
             ))
           )}

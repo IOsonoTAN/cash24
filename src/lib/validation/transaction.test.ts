@@ -10,6 +10,7 @@ const validInput = {
   description: "Noodles",
   amount: "1,200.50",
   paymentMethod: "CASH" as const,
+  recurrence: "NONE" as const,
   isInstallment: false,
   installmentNoExpiry: false,
 };
