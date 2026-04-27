@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { revalidateTag } from "next/cache";
 import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import {
@@ -59,6 +60,8 @@ export async function PATCH(request: Request, { params }: Params) {
       },
     });
 
+    revalidateTag("transactions");
+
     return NextResponse.json(updated);
   } catch {
     return NextResponse.json({ message: "Failed to update transaction." }, { status: 500 });
@@ -87,6 +90,8 @@ export async function DELETE(_: Request, { params }: Params) {
     await prisma.transaction.delete({
       where: { id },
     });
+
+    revalidateTag("transactions");
 
     return NextResponse.json({ ok: true });
   } catch {

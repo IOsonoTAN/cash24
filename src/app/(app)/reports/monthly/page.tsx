@@ -1,8 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency, formatDateTime } from "@/lib/format";
-import { prisma } from "@/lib/prisma";
-import { mapDailyMonthTotals, mapInstallmentsForMonth } from "@/lib/reporting";
+import {
+  buildMonthlyReportSummary,
+  getMonthlyReportData,
+  mapDailyMonthTotals,
+  mapInstallmentsForMonth,
+} from "@/lib/reporting";
 import { getSession } from "@/lib/session";
 import { MonthlyInstallmentTable } from "@/components/reports/monthly-installment-table";
 import { MonthlyControls } from "@/components/reports/monthly-controls";
@@ -29,40 +33,20 @@ export default async function MonthlyReportPage({
   const monthValue = params.month ?? format(new Date(), "yyyy-MM");
   const currentTab = params.tab === "installment" ? "installment" : "calendar";
   const monthDate = parse(monthValue, "yyyy-MM", new Date());
-  const monthStart = startOfMonth(monthDate);
-  const monthEnd = endOfMonth(monthDate);
 
   const session = await getSession();
-  const monthTransactions = await prisma.transaction.findMany({
-    where: {
-      userId: session!.user!.id,
-      occurredAt: {
-        gte: monthStart,
-        lte: monthEnd,
-      },
-    },
-  });
-  const transactions = await prisma.transaction.findMany({
-    where: {
-      userId: session!.user!.id,
-      isInstallment: true,
-    },
-    orderBy: {
-      occurredAt: "asc",
-    },
-  });
+  const { monthTransactions, installmentTransactions } = await getMonthlyReportData(
+    session!.user!.id,
+    monthValue,
+  );
 
-  const rows = mapInstallmentsForMonth(transactions, monthDate);
+  const rows = mapInstallmentsForMonth(installmentTransactions, monthDate);
   const totalDue = rows.reduce((sum, row) => sum + row.dueAmount, 0);
   const installmentDueTransactions = rows.length;
-  const totalIncome = monthTransactions
-    .filter((transaction) => transaction.kind === "INCOME")
-    .reduce((sum, transaction) => sum + transaction.amount, 0);
-  const totalExpense = monthTransactions
-    .filter((transaction) => transaction.kind === "EXPENSE")
-    .reduce((sum, transaction) => sum + transaction.amount, 0);
-  const netAmount = totalIncome - totalExpense;
+  const { totalIncome, totalExpense, netAmount } = buildMonthlyReportSummary(monthTransactions);
   const dailyTotals = mapDailyMonthTotals(monthTransactions);
+  const monthStart = startOfMonth(monthDate);
+  const monthEnd = endOfMonth(monthDate);
   const calendarStart = startOfWeek(monthStart);
   const calendarEnd = endOfWeek(monthEnd);
   const calendarDays = eachDayOfInterval({

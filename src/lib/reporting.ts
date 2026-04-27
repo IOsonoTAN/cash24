@@ -1,36 +1,111 @@
 import { endOfDay, format, startOfDay } from "date-fns";
+import { unstable_cache } from "next/cache";
 import { Transaction } from "@prisma/client";
 import { calculateInstallmentFinishMonth, projectInstallmentForMonth } from "@/lib/installment";
 import { prisma } from "@/lib/prisma";
 
-export async function getDailyReport(userId: string, day: Date) {
-  const transactions = await prisma.transaction.findMany({
-    where: {
-      userId,
-      occurredAt: {
-        gte: startOfDay(day),
-        lte: endOfDay(day),
+const getDailyReportCached = unstable_cache(
+  async (userId: string, dayIso: string) => {
+    const day = new Date(dayIso);
+    const transactions = await prisma.transaction.findMany({
+      where: {
+        userId,
+        occurredAt: {
+          gte: startOfDay(day),
+          lte: endOfDay(day),
+        },
       },
-    },
-    orderBy: {
-      occurredAt: "desc",
-    },
-  });
+      orderBy: {
+        occurredAt: "desc",
+      },
+    });
 
-  const income = transactions
-    .filter((t) => t.kind === "INCOME")
-    .reduce((sum, t) => sum + t.amount, 0);
-  const expense = transactions
-    .filter((t) => t.kind === "EXPENSE")
-    .reduce((sum, t) => sum + t.amount, 0);
+    const income = transactions
+      .filter((t) => t.kind === "INCOME")
+      .reduce((sum, t) => sum + t.amount, 0);
+    const expense = transactions
+      .filter((t) => t.kind === "EXPENSE")
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    return {
+      transactions,
+      summary: {
+        income,
+        expense,
+        net: income - expense,
+      },
+    };
+  },
+  ["daily-report"],
+  { tags: ["transactions"], revalidate: 30 },
+);
+
+const getMonthlyReportDataCached = unstable_cache(
+  async (userId: string, monthKey: string) => {
+    const monthDate = new Date(`${monthKey}-01T00:00:00`);
+    const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+    const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    const [monthTransactions, installmentTransactions] = await Promise.all([
+      prisma.transaction.findMany({
+        where: {
+          userId,
+          occurredAt: {
+            gte: monthStart,
+            lte: monthEnd,
+          },
+        },
+      }),
+      prisma.transaction.findMany({
+        where: {
+          userId,
+          isInstallment: true,
+        },
+        orderBy: {
+          occurredAt: "asc",
+        },
+      }),
+    ]);
+
+    return {
+      monthTransactions,
+      installmentTransactions,
+    };
+  },
+  ["monthly-report-data"],
+  { tags: ["transactions"], revalidate: 30 },
+);
+
+export async function getDailyReport(userId: string, day: Date) {
+  return getDailyReportCached(userId, day.toISOString());
+}
+
+export async function getMonthlyReportData(userId: string, monthKey: string) {
+  const cached = await getMonthlyReportDataCached(userId, monthKey);
+  return {
+    monthTransactions: cached.monthTransactions.map((transaction) => ({
+      ...transaction,
+      occurredAt: new Date(transaction.occurredAt),
+    })),
+    installmentTransactions: cached.installmentTransactions.map((transaction) => ({
+      ...transaction,
+      occurredAt: new Date(transaction.occurredAt),
+    })),
+  };
+}
+
+export function buildMonthlyReportSummary(monthTransactions: Transaction[]) {
+  const totalIncome = monthTransactions
+    .filter((transaction) => transaction.kind === "INCOME")
+    .reduce((sum, transaction) => sum + transaction.amount, 0);
+  const totalExpense = monthTransactions
+    .filter((transaction) => transaction.kind === "EXPENSE")
+    .reduce((sum, transaction) => sum + transaction.amount, 0);
 
   return {
-    transactions,
-    summary: {
-      income,
-      expense,
-      net: income - expense,
-    },
+    totalIncome,
+    totalExpense,
+    netAmount: totalIncome - totalExpense,
   };
 }
 

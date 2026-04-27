@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { revalidateTag } from "next/cache";
 import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import {
@@ -41,6 +42,8 @@ export async function POST(request: Request) {
       installmentInterestPercent: data.isInstallment ? data.installmentInterestPercent : null,
     },
   });
+
+  revalidateTag("transactions");
 
   return NextResponse.json(transaction, { status: 201 });
 }
