@@ -4,8 +4,13 @@ import { Moon, Sun } from "lucide-react";
 import { useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/components/theme-provider";
+import { cn } from "@/lib/utils";
 
-export function ThemeToggle() {
+type ThemeToggleProps = {
+  className?: string;
+};
+
+export function ThemeToggle({ className }: ThemeToggleProps) {
   const { resolvedTheme, setTheme } = useTheme();
   const mounted = useSyncExternalStore(
     () => () => {},
@@ -14,14 +19,23 @@ export function ThemeToggle() {
   );
 
   if (!mounted || !resolvedTheme) {
-    return <Button variant="outline" size="icon" disabled aria-label="Toggle theme" />;
+    return (
+      <Button
+        variant="outline"
+        size="icon-sm"
+        className={cn(className)}
+        disabled
+        aria-label="Toggle theme"
+      />
+    );
   }
 
   const isDark = resolvedTheme === "dark";
   return (
     <Button
       variant="outline"
-      size="icon"
+      size="icon-sm"
+      className={cn(className)}
       aria-label="Toggle theme"
       onClick={() => setTheme(isDark ? "light" : "dark")}
     >

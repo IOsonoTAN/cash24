@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Banknote, CreditCard, Ticket } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -9,9 +10,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/format";
 import { TransactionDrawer } from "@/components/transaction/transaction-drawer";
 import { TransactionRow } from "@/lib/transaction-types";
+import { paymentMethodLabelMap } from "@/lib/validation/transaction";
 
 export type MonthlyInstallmentRow = {
   id: string;
@@ -116,7 +119,18 @@ export function MonthlyInstallmentTable({ rows }: MonthlyInstallmentTableProps) 
                 className="cursor-pointer hover:bg-secondary/40"
                 onClick={() => setSelected(row)}
               >
-                <TableCell>{row.name}</TableCell>
+                <TableCell>
+                  <div className="space-y-1">
+                    <p>{row.name}</p>
+                    <div className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      {row.transaction.paymentMethod === "CASH" ? <Banknote className="h-3.5 w-3.5" /> : null}
+                      {row.transaction.paymentMethod === "CREDIT_CARD" ? <CreditCard className="h-3.5 w-3.5" /> : null}
+                      {row.transaction.paymentMethod === "VOUCHER" ? <Ticket className="h-3.5 w-3.5" /> : null}
+                      <span>{paymentMethodLabelMap[row.transaction.paymentMethod]}</span>
+                      {row.transaction.installmentNoExpiry ? <Badge variant="outline">Fixed cost</Badge> : null}
+                    </div>
+                  </div>
+                </TableCell>
                 <TableCell>{row.progressLabel}</TableCell>
                 <TableCell>{`${row.interestPercent}%`}</TableCell>
                 <TableCell>{row.finishMonth ?? "No expiry"}</TableCell>

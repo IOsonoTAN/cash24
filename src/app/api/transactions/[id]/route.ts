@@ -54,6 +54,7 @@ export async function PATCH(request: Request, { params }: Params) {
         name: data.name,
         description: data.description || null,
         amount: parseAmount(data.amount),
+        paymentMethod: data.paymentMethod,
         isInstallment: data.isInstallment,
         installmentNoExpiry: data.isInstallment ? (data.installmentNoExpiry ?? false) : false,
         installmentMonths: data.isInstallment ? data.installmentMonths : null,

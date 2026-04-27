@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const transactionKinds = ["EXPENSE", "INCOME"] as const;
+export const paymentMethods = ["CASH", "CREDIT_CARD", "VOUCHER"] as const;
 export const expenseCategories = [
   "EXPENSE_FOOD",
   "EXPENSE_BEVERAGE",
@@ -54,6 +55,12 @@ export const categoryLabelMap: Record<(typeof transactionCategories)[number], st
   INCOME_OTHER: "Other",
 };
 
+export const paymentMethodLabelMap: Record<(typeof paymentMethods)[number], string> = {
+  CASH: "Cash",
+  CREDIT_CARD: "Credit card",
+  VOUCHER: "Voucher",
+};
+
 const amountRegex = /^\d{1,3}(,\d{3})*(\.\d{0,2})?$|^\d+(\.\d{0,2})?$/;
 const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -66,6 +73,7 @@ export const transactionInputSchema = z
     name: z.string().trim().min(1).max(120),
     description: z.string().trim().max(500).optional(),
     amount: z.string().trim().regex(amountRegex),
+    paymentMethod: z.enum(paymentMethods),
     isInstallment: z.boolean(),
     installmentNoExpiry: z.boolean().optional(),
     installmentMonths: z.number().int().min(1).max(84).optional(),

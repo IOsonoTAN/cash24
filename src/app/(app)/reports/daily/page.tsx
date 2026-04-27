@@ -63,6 +63,7 @@ export default async function DailyReportPage({ searchParams }: DailyPageProps) 
               name: transaction.name,
               description: transaction.description,
               amount: transaction.amount,
+              paymentMethod: transaction.paymentMethod,
               isInstallment: transaction.isInstallment,
               installmentNoExpiry: transaction.installmentNoExpiry,
               installmentMonths: transaction.installmentMonths,

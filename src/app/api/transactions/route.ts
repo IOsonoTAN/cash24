@@ -37,6 +37,7 @@ export async function POST(request: Request) {
       name: data.name,
       description: data.description || null,
       amount: parseAmount(data.amount),
+      paymentMethod: data.paymentMethod,
       isInstallment: data.isInstallment,
       installmentNoExpiry: data.isInstallment ? (data.installmentNoExpiry ?? false) : false,
       installmentMonths: data.isInstallment ? data.installmentMonths : null,

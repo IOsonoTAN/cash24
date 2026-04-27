@@ -154,6 +154,7 @@ export function mapInstallmentsForMonth(transactions: Transaction[], monthDate: 
           name: transaction.name,
           description: transaction.description,
           amount: transaction.amount,
+          paymentMethod: transaction.paymentMethod,
           isInstallment: transaction.isInstallment,
           installmentNoExpiry: noExpiry,
           installmentMonths: transaction.installmentMonths ?? null,

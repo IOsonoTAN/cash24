@@ -9,6 +9,7 @@ const validInput = {
   name: "Dinner",
   description: "Noodles",
   amount: "1,200.50",
+  paymentMethod: "CASH" as const,
   isInstallment: false,
   installmentNoExpiry: false,
 };

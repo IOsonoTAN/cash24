@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
 import { format } from "date-fns";
+import { Banknote, CreditCard, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,9 +19,12 @@ import {
 } from "@/components/ui/select";
 import { sanitizeAmountInput } from "@/lib/format";
 import { enqueueTransaction } from "@/lib/offline/queue";
+import { cn } from "@/lib/utils";
 import {
   categoryLabelMap,
   kindCategoryMap,
+  paymentMethodLabelMap,
+  paymentMethods,
   TransactionInput,
   transactionInputSchema,
   transactionKinds,
@@ -59,6 +63,7 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
       name: transaction?.name ?? "",
       description: transaction?.description ?? "",
       amount: transaction ? `${transaction.amount}` : "",
+      paymentMethod: transaction?.paymentMethod ?? "CASH",
       isInstallment: transaction?.isInstallment ?? false,
       installmentNoExpiry: transaction?.installmentNoExpiry ?? false,
       installmentMonths: transaction?.installmentMonths ?? undefined,
@@ -73,6 +78,7 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
   const kind = useWatch({ control: form.control, name: "kind" });
   const category = useWatch({ control: form.control, name: "category" });
   const amount = useWatch({ control: form.control, name: "amount" });
+  const paymentMethod = useWatch({ control: form.control, name: "paymentMethod" });
   const installmentMonths = useWatch({ control: form.control, name: "installmentMonths" });
   const installmentInterestPercent = useWatch({
     control: form.control,
@@ -169,6 +175,7 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
         name: "",
         description: "",
         amount: "",
+        paymentMethod: values.paymentMethod,
         isInstallment: false,
         installmentNoExpiry: false,
         installmentMonths: undefined,
@@ -262,7 +269,7 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
             id="date"
             type="date"
             max={maxDate}
-            className="bg-background/75"
+            className="bg-background/75 [&::-webkit-calendar-picker-indicator]:cursor-pointer dark:[&::-webkit-calendar-picker-indicator]:invert dark:[&::-webkit-calendar-picker-indicator]:opacity-90"
             {...form.register("date")}
             aria-invalid={Boolean(form.formState.errors.date)}
           />
@@ -272,7 +279,7 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
           <Input
             id="time"
             type="time"
-            className="bg-background/75"
+            className="bg-background/75 [&::-webkit-calendar-picker-indicator]:cursor-pointer dark:[&::-webkit-calendar-picker-indicator]:invert dark:[&::-webkit-calendar-picker-indicator]:opacity-90"
             {...form.register("time")}
             aria-invalid={Boolean(form.formState.errors.time)}
           />
@@ -309,6 +316,33 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
           }}
           aria-invalid={Boolean(form.formState.errors.amount)}
         />
+      </div>
+      <div className="space-y-2">
+        <Label>Payment method <span className="text-destructive">*</span></Label>
+        <div className="grid grid-cols-3 gap-2">
+          {paymentMethods.map((method) => (
+            <button
+              key={method}
+              type="button"
+              className={cn(
+                "inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-border bg-background/75 px-2 py-2 text-xs transition hover:bg-secondary/70",
+                paymentMethod === method
+                  ? "border-primary bg-primary/20 text-primary"
+                  : "text-muted-foreground",
+              )}
+              onClick={() =>
+                form.setValue("paymentMethod", method as TransactionInput["paymentMethod"], {
+                  shouldValidate: true,
+                })
+              }
+            >
+              {method === "CASH" ? <Banknote className="h-3.5 w-3.5" /> : null}
+              {method === "CREDIT_CARD" ? <CreditCard className="h-3.5 w-3.5" /> : null}
+              {method === "VOUCHER" ? <Ticket className="h-3.5 w-3.5" /> : null}
+              <span>{paymentMethodLabelMap[method]}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="flex items-center justify-between rounded-md border border-border/50 px-3 py-2">
@@ -387,6 +421,11 @@ export function TransactionForm({ mode, transaction, onComplete }: TransactionFo
               />
             </div>
           </div>
+          {installmentNoExpiry ? (
+            <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+              Fixed cost
+            </p>
+          ) : null}
         </div>
       ) : null}
 

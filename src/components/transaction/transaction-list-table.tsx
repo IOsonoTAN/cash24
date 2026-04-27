@@ -2,6 +2,7 @@
 
 import { format } from "date-fns";
 import { useMemo, useState } from "react";
+import { Banknote, CreditCard, Ticket } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -13,7 +14,7 @@ import {
 } from "@/components/ui/table";
 import { TransactionDrawer } from "@/components/transaction/transaction-drawer";
 import { formatCurrency, formatDateTime } from "@/lib/format";
-import { categoryLabelMap } from "@/lib/validation/transaction";
+import { categoryLabelMap, paymentMethodLabelMap } from "@/lib/validation/transaction";
 import { TransactionRow } from "@/lib/transaction-types";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,7 +24,7 @@ type TransactionListTableProps = {
   emptyLabel: string;
 };
 
-type SortKey = "occurredAt" | "name" | "category" | "kind" | "amount";
+type SortKey = "occurredAt" | "name" | "category" | "kind" | "paymentMethod" | "amount";
 
 export function TransactionListTable({ transactions, emptyLabel }: TransactionListTableProps) {
   const [selected, setSelected] = useState<TransactionRow | null>(null);
@@ -84,6 +85,8 @@ export function TransactionListTable({ transactions, emptyLabel }: TransactionLi
         result = categoryLabelMap[a.category].localeCompare(categoryLabelMap[b.category]);
       } else if (sortKey === "kind") {
         result = a.kind.localeCompare(b.kind);
+      } else if (sortKey === "paymentMethod") {
+        result = a.paymentMethod.localeCompare(b.paymentMethod);
       } else {
         result = a.amount - b.amount;
       }
@@ -139,6 +142,11 @@ export function TransactionListTable({ transactions, emptyLabel }: TransactionLi
             <TableHead>
               <button type="button" onClick={() => handleSort("kind")}>
                 Type{sortLabel("kind")}
+              </button>
+            </TableHead>
+            <TableHead>
+              <button type="button" onClick={() => handleSort("paymentMethod")}>
+                Payment{sortLabel("paymentMethod")}
               </button>
             </TableHead>
             <TableHead className="text-right">
@@ -203,6 +211,7 @@ export function TransactionListTable({ transactions, emptyLabel }: TransactionLi
                 </SelectContent>
               </Select>
             </TableHead>
+            <TableHead />
             <TableHead>
               <Input value={amountFilter} onChange={(event) => setAmountFilter(event.target.value)} placeholder="Filter amount" />
             </TableHead>
@@ -211,7 +220,7 @@ export function TransactionListTable({ transactions, emptyLabel }: TransactionLi
         <TableBody>
           {displayedTransactions.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground">
+              <TableCell colSpan={6} className="text-center text-muted-foreground">
                 {emptyLabel}
               </TableCell>
             </TableRow>
@@ -230,7 +239,19 @@ export function TransactionListTable({ transactions, emptyLabel }: TransactionLi
                     <Badge variant={transaction.kind === "INCOME" ? "default" : "secondary"}>
                       {transaction.kind}
                     </Badge>
-                    {transaction.isInstallment ? <Badge variant="outline">Installment</Badge> : null}
+                    {transaction.isInstallment ? (
+                      <Badge variant="outline">
+                        {transaction.installmentNoExpiry ? "Fixed cost" : "Installment"}
+                      </Badge>
+                    ) : null}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="inline-flex items-center gap-1 text-xs">
+                    {transaction.paymentMethod === "CASH" ? <Banknote className="h-3.5 w-3.5" /> : null}
+                    {transaction.paymentMethod === "CREDIT_CARD" ? <CreditCard className="h-3.5 w-3.5" /> : null}
+                    {transaction.paymentMethod === "VOUCHER" ? <Ticket className="h-3.5 w-3.5" /> : null}
+                    <span>{paymentMethodLabelMap[transaction.paymentMethod]}</span>
                   </div>
                 </TableCell>
                 <TableCell className="text-right">{formatCurrency(transaction.amount)}</TableCell>

@@ -17,6 +17,12 @@ enum TransactionKind {
   INCOME
 }
 
+enum PaymentMethod {
+  CASH
+  CREDIT_CARD
+  VOUCHER
+}
+
 enum TransactionCategory {
   EXPENSE_FOOD
   EXPENSE_BEVERAGE
@@ -98,6 +104,7 @@ model Transaction {
   name                       String
   description                String?
   amount                     Float
+  paymentMethod              PaymentMethod         @default(CASH)
   isInstallment              Boolean             @default(false)
   installmentNoExpiry        Boolean             @default(false)
   installmentMonths          Int?
