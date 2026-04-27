@@ -1,0 +1,16 @@
+{
+  "name": "Cash24",
+  "short_name": "Cash24",
+  "description": "Personal cash flow tracker",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c1220",
+  "theme_color": "#0c1220",
+  "icons": [
+    {
+      "src": "/next.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

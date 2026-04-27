@@ -1,0 +1,77 @@
+"use client";
+
+import Link from "next/link";
+import type { Route } from "next";
+import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
+import { CalendarDays, CalendarRange, LayoutDashboard, LogOut, Menu } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { TransactionDrawer } from "@/components/transaction/transaction-drawer";
+import { cn } from "@/lib/utils";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Separator } from "@/components/ui/separator";
+
+const navigation: { href: Route; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/reports/daily", label: "Daily report", icon: CalendarDays },
+  { href: "/reports/monthly", label: "Monthly report", icon: CalendarRange },
+];
+
+export function AppShellHeader() {
+  const pathname = usePathname();
+
+  return (
+    <header className="glass sticky top-0 z-30 border-b">
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3 md:px-6">
+        <div className="flex items-center gap-2">
+          <Sheet>
+            <SheetTrigger render={<Button variant="outline" size="icon" />}>
+              <Menu className="h-4 w-4" />
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[280px]">
+              <SheetHeader>
+                <SheetTitle>Cash24 Menu</SheetTitle>
+              </SheetHeader>
+              <nav className="mt-4 flex flex-col gap-2 p-2">
+                {navigation.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition",
+                      pathname === item.href
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-secondary-foreground",
+                    )}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                ))}
+                <Separator className="my-2" />
+                <Button
+                  variant="outline"
+                  className="justify-start"
+                  onClick={() => signOut({ callbackUrl: "/sign-in" })}
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </Button>
+              </nav>
+            </SheetContent>
+          </Sheet>
+          <h1 className="text-lg font-semibold">Cash24</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <TransactionDrawer
+            triggerLabel="Add"
+            triggerVariant="outline"
+            triggerClassName="h-10 px-3"
+          />
+          <ThemeToggle />
+        </div>
+      </div>
+    </header>
+  );
+}
